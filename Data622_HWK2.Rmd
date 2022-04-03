@@ -1,0 +1,448 @@
+---
+title: "Data622_HWk2"
+author: "Alexis Mekueko"
+date: "3/30/2022"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r load-packages, results='hide',warning=FALSE, message=FALSE, echo=FALSE}
+
+##library(tidyverse) #loading all library needed for this assignment
+
+
+library(knitr)
+library(dplyr)
+library(tidyr)
+
+library(stats)
+library(statsr)
+library(GGally)
+library(pdftools)
+library(correlation)
+library(naniar)
+
+library(urca)
+library(tsibble)
+library(tseries)
+library(forecast)
+library(caret)
+set.seed(34332)
+library(plyr)
+library(arules)
+library(arulesViz)
+library(report)
+library(cluster) # to perform different types of hierarchical clustering
+# package functions used: daisy(), diana(), clusplot()
+#install.packages("visdat")
+library(visdat)
+library(plotly)
+library(reshape2)
+library(mlbench)
+library(corrplot)
+library(pROC)
+library(prodlim)
+
+library(DataExplorer)
+library(MASS)
+
+```
+
+
+
+
+[Github Link](https://github.com/asmozo24/Data622_HWK2)
+<br>
+[Web Link](https://rpubs.com/amekueko/885406)
+
+
+## Assignment:
+
+Based on the latest topics presented, bring a dataset of your choice and create a Decision Tree where you can solve a classification or regression problem and predict the outcome of a particular feature or detail of the data used.
+Switch variables to generate 2 decision trees and compare the results. Create a random forest for regression and analyze the results.
+Based on real cases where desicion trees went wrong, and 'the bad & ugly' aspects of decision trees (https://decizone.com/blog/the-good-the-bad-the-ugly-of-using-decision-trees), how can you change this perception when using the decision tree you created to solve a real problem? Format: document with screen captures & analysis.
+
+
+
+## Impport Data and Data Structure
+
+We imported the data from local drive. Another option could be to load the date from Github.
+ 
+```{r, echo=FALSE}
+
+# Loading data
+loanDF <- read.csv("Loan.csv", stringsAsFactors=FALSE)
+
+#write.csv(loanDF, file = "Loan.csv", quote = F, row.names = F)
+
+#View(loanDF)
+#glimpse(loanDF)
+
+str(loanDF)
+
+loanDF %>%
+  head(8)%>%
+  kable()
+
+``` 
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+##### Dataset Description
+
+
+Variables           | Descriptions
+
+Loan_ID             | Unique Loan ID
+
+Gender              | Male/Female
+
+Married             | Appliquant marital status (Y/N)
+
+Dependents          | Number of dependents
+
+Education           | Applicant Education (Graduate/Undergraduate)
+
+Self_Employed       | Self_employed (Y/N)
+
+ApplicantIncome     | Applicant income
+
+CoapplicantIncome   | Coapplicant income
+
+LoanAmount          | Loan amount in thousands dollars
+
+Loan_Amount_Term    | Term of loan in months
+
+Credit_History      | Credit history meets guidelines
+
+Property_Area       | Urban, semi-urban, rural
+
+Loan_Status         | Loan approved (Y/N)
+
+
+
+This dataset is a typical format which banks use to screen/select applicant for a loan. There 614 records with 13 variables. The datatypes in this dataset are mostly character and numerical. There are some variables (Loan_Status,Self_Employed, Married,Dependents etc) with characters datatype that should be factor with two levels (yes/no or 0/1). The variable "Credit_History" should be in term of number of years. We assume the bank uses '1' to say the customer meets the minimum number of years to qualify for a loan and '0' for those who don't meet the minimum years. Normally, a customer with a credit history = 0 should be denied a loan. Is it true on this bank record? Answer is no. Therefore the decision to approve a loan for a customer relies on the combination with other variables other than the dependent/target 'Loan_Status'. Based on the information about the structure of the dataset, we can conclude that we have a labeled data. Therefore, we can be confident in using supervised learning on this dataset. As we know, supervised learning model account for a classification model and we will predict the state of client loan approval. 
+
+
+## Cleaning Data
+
+```{r }
+
+
+#install.packages('Amelia')
+#install.packages('DataExplorer')
+
+library(Amelia)
+#sum(is.na(loanDF))
+misValues <- sum(is.na(loanDF))# Returning the column names with missing values
+
+#sum(is.na(basket1a$X.1))
+#misValues1 <- sum(is.na()
+# Filling the empty spece with "NA"
+#us_d <- dplyr::na_if(us_d, "")
+#is.null(us_d)
+#if (is.na(us_d)|| us_d== '')
+#is.empty(" ")
+#apply(myData, 2, function(myCol){  sum(myCol == "1") > 0
+  
+emptyValue <- sum(emptyValue <- sapply(loanDF, function(x) all(is.na(x) | x == '' )) ) 
+
+cat("The dataset contains missing values for a total record of : " , misValues)
+print("\n")
+cat("The dataset contains empty values for a total record of : " , emptyValue)
+
+missmap(loanDF,col=c('yellow','black'),y.at=1,y.labels=' ',legend=TRUE)
+#count(loanDF$Credit_History)
+
+```
+
+The plot of missing values shows that there are definitely missing values(86 records) withing the dataset. Let's take a look at this missing values. 
+
+```{r }
+
+
+library(VIM)
+#aggr(loanDF)
+#vis_miss(loanDF)
+
+
+
+missing.values <- function(df){
+    df %>%
+    gather(key = "variables", value = "val") %>%
+    mutate(is.missing = is.na(val)) %>%
+    group_by(variables, is.missing) %>%
+    dplyr::summarise(number.missing = n()) %>%
+    filter(is.missing==T) %>%
+    dplyr::select(-is.missing) %>%
+    arrange(desc(number.missing)) 
+}
+
+missing.values(loanDF)%>%
+  kable()
+
+library(DataExplorer)
+plot_missing(loanDF)
+
+#gg_miss_upset(loanDF)
+
+# dev.off()
+# print(plot(1))
+
+
+#count((data1000R$Order.Priority))
+
+#sum(is.na(data1000R$Order.Priority))
+# Not sure why the code below does not work
+# data1000R %>% 
+#   group_by(data1000R$Order.Priority) %>%
+#   summarize(Count=n()) %>%
+#   mutate(Percent = (Count/sum(Count))*100) %>%
+#   arrange(desc(Count))
+
+```
+
+The missing values are present in these variables (Loan_Amount_Term, LoanAmount and Credit_History). Since the dataset is a small in size, deleting these missing values will reduce the dataset. Instead of deleting, we can apply imputation on these missing values.
+
+```{r }
+
+
+#if (is.na(loanDF$Self_Employed) || loanDF$Self_Employed == '')
+count(loanDF$Gender)
+
+#loanDF$Gender[loanDF$Gender==""]<-NA
+loanDF[loanDF==""]<- c('NA')
+
+# Works but does not fix the issue with blanks value
+#loanDF <- loanDF %>% 
+#                 mutate_all(na_if,"")
+
+## define a empty function
+# empty_as_na <- function(x){
+#     if("factor" %in% class(x)) x <- as.character(x) ## since ifelse won't work with factors
+#     ifelse(as.character(x)!="", x, NA) <NA>
+# }
+
+## transform all columns
+#loanDF %>% 
+#  mutate_each(funs(empty_as_na))
+
+#loanDF[loanDF=="NA"]<- c('<NA>')
+#loanDF <- loanDF %>%
+#   mutate(across(everything(), ~ifelse(.=="", NA, as.character(.))))
+
+count(loanDF$Gender)
+count(loanDF$Self_Employed)
+count(loanDF$Credit_History)
+sum(is.na(loanDF$Credit_History))
+sum(is.na(loanDF$Gender))
+sum(is.na(loanDF$Self_Employed))
+#View(loanDF)
+
+```
+
+Somehow there are some empty values. These aren't easy to check because the mapping of missing values above missed them.
+We filled in the empty/blank values with 'NA'. But the blank values issue is persisting. We tried loading the dataset with a fix. 
+```{r }
+
+loanDF <- read.csv("Loan.csv", header=T, na.strings=c("",'NA'))
+#loanDF$Gender[loanDF$Gender == " "]<- NA
+loanDF$Gender[loanDF$Gender == ""  | loanDF$Gender== " "] <- NA 
+loanDF$Dependents[loanDF$Dependents == ""  | loanDF$Dependents== " "] <- NA 
+loanDF$Self_Employed[loanDF$Self_Employed == ""  | loanDF$Self_Employed== " "] <- NA 
+loanDF$Married[loanDF$Married == ""  | loanDF$Married== " "] <- NA 
+
+#loanDF$Self_Employed[is.na(loanDF$Self_Employed)] <- mean(loanDF$Self_Employed, na.rm = TRUE)
+
+#if (!require("tidyverse")) install.packages("tidyverse")
+calc_mode <- function(x){
+  
+  # List the distinct / unique values
+  distinct_values <- unique(x)
+  
+  # Count the occurrence of each distinct value
+  distinct_tabulate <- tabulate(match(x, distinct_values))
+  
+  # Return the value with the highest occurrence
+  distinct_values[which.max(distinct_tabulate)]
+}
+
+
+loanDF %>% 
+  mutate(across(everything(), ~replace_na(.x, calc_mode(.x))))
+
+
+count(loanDF$Gender)
+count(loanDF$Self_Employed)
+count(loanDF$Credit_History)
+sum(is.na(loanDF$Credit_History))
+sum(is.na(loanDF$Gender))
+sum(is.na(loanDF$Self_Employed))
+#View(loanDF)
+
+```
+
+
+let's perform imputation.
+
+```{r }
+
+#df[!(is.na(df$start_pc) | df$start_pc==""), ]
+#df <- with(df, df[!(start_pc == "" | is.na(start_pc)), ])
+#test for non-zero string length using nzchar.
+#df <- with(df, df[!(nzchar(start_pc) | is.na(start_pc)), ])
+
+#loanDF1 <- loanDF1[-which(loanDF1$Gender == ""), ]
+
+
+library(mice)
+imputed <- mice(loanDF, m=2, maxit = 2, method = 'cart', seed = 23321)
+#mice = multiple imputation by chained equations. The 'm' argument = number of rounds of imputation
+#CART = classification and regression trees
+loanDF1<- complete(imputed,2) #here I chose the second round of data imputation
+missmap(loanDF1,col=c('yellow','black'),y.at=1,y.labels=' ',legend=TRUE)
+#str(loanDF1)
+#library(stringi)
+#stri_isempty(loanDF1$Self_Employed)
+
+#is.null(loanDF1$Gender)
+count(loanDF1$Gender)
+count(loanDF1$Married)
+
+
+```
+
+
+We clearly see that there is no more missing data.
+
+## Processing Data
+
+Let's remove the variables that we don't need for the decision trees model. Then, we will reformat the dataset into a new data frame in which some variables (Married,Dependents,Self_Employed,Credit_History and Loan_Status). 
+
+
+```{r }
+
+loanDF1$Loan_ID <- NULL
+str(loanDF1)
+
+loanDF1$Married <- as.factor(loanDF1$Married)
+loanDF1$Dependents <- as.factor(loanDF1$Dependents)
+loanDF1$Self_Employed <- as.factor(loanDF1$Credit_History)
+loanDF1$Loan_Status <- as.factor(loanDF1$Loan_Status)
+
+
+```
+
+Based on the item type "Cereal", we observed that the price does not really change regardless of other factors. Meaning the unit price is fixed. We have verified the presumption for one item. How about other items sold by this store? We used groupby() function and since we didn't get any error, we will assume the presumption is also verified for all items sold by the store. There might be a global view to see all items by individual table. Now we have verified the presumption, we can remove unnecessary variables. 
+
+```{r }
+library(data.table)
+#is.null(loanDF1)
+# We want to check which item is popular.
+data2 <- data.table( ItemType = data1000R$Item.Type)
+data2[,.(count = .N), by = ItemType][, percent := prop.table(count)*100][]
+
+#installed.packages('skimr')
+library(skimr)
+loanDF1[sapply(loanDF1, is.character)] <- lapply(loanDF1[sapply(loanDF1, is.character)], as.factor)
+skimr::skim(loanDF1)
+
+```
+
+
+### Summary and Correlation
+
+This is a summary and correlation of the popular item known as "Beverage"
+
+```{r }
+
+
+summary(loanDF1)
+summary(loanDF1$Self_Employed)
+count(loanDF1$Self_Employed)
+typeof(loanDF1$Self_Employed)
+describe(loanDF1$Self_Employed)
+#as.numeric(data1000R1$Units.Sold)
+#library(Hmisc)
+#data1 <- data.frame(data1000R1)
+cor(loanDF1)
+#cor(data1000R1[,unlist(lapply(data1000R1, is.numeric))])
+#rcorr(as.matrix(data1000R1), type = "Pearson")
+
+```
+
+Something is wrong with the correlation. we think the fact that the unit price is fixed might be the cause of such correlation output.
+
+```{r, echo=FALSE}
+
+describe(student_math$G3)
+#summary(student_math$G3)
+#print("Students taken Math course distribution from each school are: 88.4% students for Gabriel Pereira School and 11.6% students for Mousinho da Silveira School")
+
+barplot(table(student_math$school), main = "Students in Math Course Distribution per School", xlab = "GP = Gabriel Pereira School, MS = Mousinho da Silveira School", col = c("#d94701", "#238b45")) #, width = c(0.4,0.1) ) #~ student_math$studytime ) #, student_math$sex)
+#boxplot(Var2~school, data = student_math, xlab = "GP = Gabriel Pereira School, MS = Mousinho da Silveira School", ylab = "Number of Students", main = "Students Enrolled in Math Course" , col = c("green","purple"))
+```
+
+
+
+## Building Model 1 +Visualization
+
+
+```{r }
+
+# # load package
+# #install.packages("ggstatsplot")
+# library(ggstatsplot)
+# 
+# # correlogram
+# ggstatsplot::ggcorrmat(
+#   data = data1000R1,
+#   type = "parametric", # parametric for Pearson, nonparametric for Spearman's correlation
+#   colors = c("darkred", "white", "steelblue") # change default colors
+# )
+
+set.seed(232)
+
+library(caTools)
+data1000R1s <- sample.split(data1000R1, SplitRatio = 0.70)
+train1 <- subset(data1000R1, data1000R1s == TRUE)
+test1 <- subset(data1000R1, data1000R1s == FALSE)
+
+model1 <- lm(Total.Profit~., train1)
+summary(model1)
+plot (model1, which = 2)
+
+plot (model1, which = 1)
+
+```
+
+There is something strange on the regression performance. The R-squared value is perfect showing only one variable (Unit.Sold) has influence on the total profit. The multilinear regression model could be just a simple linear regression model. This is a bit hard to admit. We want to try to call another function for partionning the data. 
+
+
+```{r }
+partition <- createDataPartition(data1000R1$Total.Profit, p = 0.70, list = FALSE)
+train1s <- data1000R1[partition,]
+test1s <- data1000R1[-partition,]
+dim(train1s)
+dim(test1s)
+
+# Fitting the model
+model1s <- lm(Total.Profit~Units.Sold
++ Unit.Price+Unit.Cost+Total.Revenue
++Total.Cost, data = train1s)
+summary(model1s)
+plot(model1s, which = 2)
+
+```
+
+
+

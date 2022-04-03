@@ -264,6 +264,12 @@ loanDF$Married[loanDF$Married == ""  | loanDF$Married== " "] <- NA
 #loanDF$Self_Employed[is.na(loanDF$Self_Employed)] <- mean(loanDF$Self_Employed, na.rm = TRUE)
 
 #if (!require("tidyverse")) install.packages("tidyverse")
+
+loanDF %>% 
+  mutate(Gender = if_else(is.na(Gender), 
+                         calc_mode(Gender), 
+                         Gender))
+
 calc_mode <- function(x){
   
   # List the distinct / unique values
@@ -279,6 +285,31 @@ calc_mode <- function(x){
 
 loanDF %>% 
   mutate(across(everything(), ~replace_na(.x, calc_mode(.x))))
+
+# 
+# getmode <- function(v){
+#   v=v[nchar(as.character(v))>0]
+#   uniqv <- unique(v)
+#   uniqv[which.max(tabulate(match(v, uniqv)))]
+# }
+# 
+# for (cols in colnames(df)) {
+#   if (cols %in% names(df[,sapply(df, is.numeric)])) {
+#     df<-df%>%mutate(!!cols := replace(!!rlang::sym(cols), is.na(!!rlang::sym(cols)), mean(!!rlang::sym(cols), na.rm=TRUE)))
+#      
+#   }
+#   else {
+#      
+#     df<-df%>%mutate(!!cols := replace(!!rlang::sym(cols), !!rlang::sym(cols)=="", getmode(!!rlang::sym(cols))))
+#      
+#   }
+# }
+#  
+# df
+
+
+
+
 
 
 count(loanDF$Gender)
@@ -310,11 +341,12 @@ imputed <- mice(loanDF, m=2, maxit = 2, method = 'cart', seed = 23321)
 #CART = classification and regression trees
 loanDF1<- complete(imputed,2) #here I chose the second round of data imputation
 missmap(loanDF1,col=c('yellow','black'),y.at=1,y.labels=' ',legend=TRUE)
-#str(loanDF1)
+str(loanDF1)
 #library(stringi)
 #stri_isempty(loanDF1$Self_Employed)
 
 #is.null(loanDF1$Gender)
+# Checking for empty value again
 count(loanDF1$Gender)
 count(loanDF1$Married)
 
